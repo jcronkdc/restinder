@@ -923,9 +923,10 @@ function App({ session }) {
   // ═══ RENDER ═══
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden">
-      <div className="absolute top-[-200px] left-[-200px] w-[500px] h-[500px] rounded-full bg-brand-pink/10 blur-[120px]" />
-      <div className="absolute bottom-[-200px] right-[-200px] w-[500px] h-[500px] rounded-full bg-brand-purple/10 blur-[120px]" />
+    <main className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden noise-overlay">
+      <div className="animated-bg">
+        <div className="animated-bg-orb" />
+      </div>
 
       {/* Top bar (welcome) */}
       {step === "welcome" && (
@@ -933,19 +934,21 @@ function App({ session }) {
           {favorites.length > 0 && (
             <button
               onClick={() => setShowFavorites(true)}
-              className="h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors px-3 gap-1.5"
+              className="h-10 rounded-full glass-strong flex items-center justify-center hover:bg-white/10 transition-all duration-300 px-3.5 gap-1.5 active:scale-95"
             >
               <Bookmark className="w-4 h-4 text-brand-pink fill-brand-pink" />
-              <span className="text-white text-xs font-medium">
+              <span className="text-white text-xs font-semibold">
                 {favorites.length}
               </span>
             </button>
           )}
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors"
+            className="w-10 h-10 rounded-full glass-strong flex items-center justify-center hover:bg-white/10 transition-all duration-300 active:scale-95"
           >
-            <Settings className="w-5 h-5 text-brand-muted" />
+            <Settings
+              className={`w-5 h-5 text-brand-muted transition-transform duration-300 ${showSettings ? "rotate-90 text-brand-purple" : ""}`}
+            />
           </button>
         </div>
       )}
@@ -957,7 +960,7 @@ function App({ session }) {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="absolute top-16 right-5 z-30 w-72 glass rounded-2xl p-5 space-y-4"
+            className="absolute top-16 right-5 z-30 w-72 glass-strong rounded-2xl p-5 space-y-4 shadow-2xl"
           >
             <h3 className="text-white font-bold text-sm">Your Settings</h3>
             <div className="text-xs text-brand-muted space-y-2">
@@ -1013,28 +1016,35 @@ function App({ session }) {
         {step === "welcome" && (
           <motion.div
             key="welcome"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.98 }}
+            transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
             className="text-center z-10 max-w-md w-full"
           >
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl gradient-bg mb-4 shadow-lg shadow-brand-pink/30">
-              <Heart className="w-10 h-10 text-white" />
-            </div>
-            <h1 className="text-5xl font-bold gradient-text mb-3">Restinder</h1>
-            <p className="text-brand-muted text-lg mb-6">
+            <motion.div
+              className="inline-flex items-center justify-center w-20 h-20 rounded-2xl gradient-bg mb-5 glow-pink"
+              animate={{ rotate: [0, -5, 5, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Heart className="w-10 h-10 text-white drop-shadow-lg" />
+            </motion.div>
+            <h1 className="text-5xl font-extrabold gradient-text mb-2 tracking-tight">
+              Restinder
+            </h1>
+            <p className="text-brand-muted-light text-lg mb-7 font-medium">
               Swipe right on dinner. Together.
             </p>
 
             {/* Name input */}
-            <div className="glass rounded-2xl p-5 mb-4 space-y-3">
+            <div className="glass-strong rounded-2xl p-5 mb-4 space-y-3">
               <input
                 type="text"
                 placeholder="Your name"
                 value={myName}
                 onChange={(e) => setMyName(sanitize(e.target.value))}
                 maxLength={50}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-brand-muted focus:outline-none focus:border-brand-purple/50"
+                className="w-full bg-white/[0.03] border border-white/10 rounded-xl py-3.5 px-4 text-white placeholder-brand-muted/60 focus:outline-none focus:border-brand-purple/40 transition-all duration-300"
               />
               {partnerName && partnerId ? (
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
@@ -1044,7 +1054,7 @@ function App({ session }) {
                   </span>
                   <button
                     onClick={() => setStep("partner")}
-                    className="text-xs text-brand-muted hover:text-white"
+                    className="text-xs text-brand-muted hover:text-white transition-colors"
                   >
                     Manage
                   </button>
@@ -1052,29 +1062,31 @@ function App({ session }) {
               ) : (
                 <button
                   onClick={() => setStep("partner")}
-                  className="w-full flex items-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-left"
+                  className="w-full flex items-center gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.07] hover:border-brand-purple/30 transition-all duration-300 text-left group"
                 >
                   <Link2 className="w-4 h-4 text-brand-purple" />
                   <span className="text-brand-muted text-sm flex-1">
                     Link partner for remote play
                   </span>
-                  <ChevronRight className="w-4 h-4 text-brand-muted/50" />
+                  <ChevronRight className="w-4 h-4 text-brand-muted/50 group-hover:text-brand-purple/70 transition-colors" />
                 </button>
               )}
             </div>
 
             {/* Mode picker */}
-            <div className="flex gap-3 mb-4">
+            <div className="flex gap-3 mb-5">
               <button
                 onClick={() => {
                   setMode("local");
                   setStep("cuisines");
                 }}
                 disabled={!myName}
-                className="flex-1 glass rounded-2xl p-4 text-left hover:bg-white/5 transition-colors disabled:opacity-30 border-2 border-transparent hover:border-brand-purple/30"
+                className="flex-1 glass-strong rounded-2xl p-4 text-left hover:bg-white/[0.06] transition-all duration-300 disabled:opacity-30 border border-transparent hover:border-brand-purple/40 hover:shadow-lg hover:shadow-brand-purple/10 active:scale-[0.98] group"
               >
-                <Smartphone className="w-5 h-5 text-brand-purple mb-2" />
-                <p className="text-white font-semibold text-sm">Same Phone</p>
+                <div className="w-9 h-9 rounded-xl bg-brand-purple/15 flex items-center justify-center mb-2.5 group-hover:bg-brand-purple/25 transition-colors">
+                  <Smartphone className="w-4.5 h-4.5 text-brand-purple" />
+                </div>
+                <p className="text-white font-bold text-sm">Same Phone</p>
                 <p className="text-brand-muted text-xs mt-0.5">
                   Pass &amp; play
                 </p>
@@ -1085,16 +1097,18 @@ function App({ session }) {
                   setStep("cuisines");
                 }}
                 disabled={!myName || !partnerId}
-                className="flex-1 glass rounded-2xl p-4 text-left hover:bg-white/5 transition-colors disabled:opacity-30 border-2 border-transparent hover:border-brand-pink/30"
+                className="flex-1 glass-strong rounded-2xl p-4 text-left hover:bg-white/[0.06] transition-all duration-300 disabled:opacity-30 border border-transparent hover:border-brand-pink/40 hover:shadow-lg hover:shadow-brand-pink/10 active:scale-[0.98] group"
               >
-                <Wifi className="w-5 h-5 text-brand-pink mb-2" />
-                <p className="text-white font-semibold text-sm">Own Phones</p>
+                <div className="w-9 h-9 rounded-xl bg-brand-pink/15 flex items-center justify-center mb-2.5 group-hover:bg-brand-pink/25 transition-colors">
+                  <Wifi className="w-4.5 h-4.5 text-brand-pink" />
+                </div>
+                <p className="text-white font-bold text-sm">Own Phones</p>
                 <p className="text-brand-muted text-xs mt-0.5">
                   {partnerId ? `With ${partnerName}` : "Link partner first"}
                 </p>
               </button>
             </div>
-            <p className="text-brand-muted/40 text-xs">
+            <p className="text-brand-muted/30 text-[11px] font-medium tracking-wide uppercase">
               Stop arguing. Start eating.
             </p>
           </motion.div>
@@ -1109,23 +1123,31 @@ function App({ session }) {
             exit={{ opacity: 0, x: -50 }}
             className="text-center z-10 max-w-md w-full"
           >
-            <Link2 className="w-12 h-12 text-brand-purple mx-auto mb-3" />
-            <h2 className="text-2xl font-bold text-white mb-2">
+            <motion.div
+              className="w-14 h-14 rounded-2xl bg-brand-purple/15 flex items-center justify-center mx-auto mb-4"
+              animate={{ rotate: [0, -5, 5, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Link2 className="w-7 h-7 text-brand-purple" />
+            </motion.div>
+            <h2 className="text-3xl font-extrabold text-white mb-2 tracking-tight">
               Link Your Partner
             </h2>
-            <p className="text-brand-muted text-sm mb-6">
+            <p className="text-brand-muted text-sm mb-6 font-medium">
               Share your code or enter theirs to connect
             </p>
 
-            <div className="glass rounded-2xl p-5 mb-4">
-              <p className="text-brand-muted text-xs mb-2">Your partner code</p>
+            <div className="glass-strong rounded-2xl p-5 mb-4">
+              <p className="text-brand-muted text-xs mb-2 font-medium uppercase tracking-wider">
+                Your partner code
+              </p>
               <div className="flex items-center justify-center gap-3">
-                <span className="text-3xl font-mono font-bold tracking-[0.3em] text-white">
+                <span className="text-3xl font-mono font-bold tracking-[0.3em] text-white drop-shadow-[0_0_10px_rgba(192,132,252,0.3)]">
                   {partnerCode || "..."}
                 </span>
                 <button
                   onClick={copyCode}
-                  className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+                  className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all duration-300 active:scale-90"
                 >
                   {copied ? (
                     <Check className="w-4 h-4 text-green-400" />
@@ -1134,13 +1156,13 @@ function App({ session }) {
                   )}
                 </button>
               </div>
-              <p className="text-brand-muted/50 text-xs mt-2">
+              <p className="text-brand-muted/40 text-xs mt-2">
                 Send this to your partner
               </p>
             </div>
 
-            <div className="glass rounded-2xl p-5 mb-4">
-              <p className="text-brand-muted text-xs mb-2">
+            <div className="glass-strong rounded-2xl p-5 mb-4">
+              <p className="text-brand-muted text-xs mb-2 font-medium uppercase tracking-wider">
                 Enter partner&apos;s code
               </p>
               <div className="flex gap-2">
@@ -1152,11 +1174,11 @@ function App({ session }) {
                     setLinkCode(sanitize(e.target.value, 6).toUpperCase())
                   }
                   maxLength={6}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white text-center text-xl font-mono tracking-widest placeholder-brand-muted/30 focus:outline-none focus:border-brand-purple/50 uppercase"
+                  className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl py-3.5 px-4 text-white text-center text-xl font-mono tracking-widest placeholder-brand-muted/20 focus:outline-none focus:border-brand-purple/40 transition-all duration-300 uppercase"
                 />
                 <button
                   onClick={linkPartner}
-                  className="gradient-bg text-white font-semibold py-3 px-5 rounded-xl hover:opacity-90 transition-opacity"
+                  className="gradient-bg text-white font-bold py-3.5 px-6 rounded-xl hover:opacity-90 transition-all duration-300 btn-shine active:scale-[0.98]"
                 >
                   Link
                 </button>
@@ -1167,7 +1189,7 @@ function App({ session }) {
             </div>
 
             {partnerName && partnerId && (
-              <div className="glass rounded-2xl p-4 mb-4">
+              <div className="glass-strong rounded-2xl p-4 mb-4 border-green-500/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
@@ -1208,10 +1230,10 @@ function App({ session }) {
             exit={{ opacity: 0, x: -50 }}
             className="text-center z-10 max-w-md w-full max-h-[90vh] overflow-y-auto scrollbar-hide"
           >
-            <h2 className="text-2xl font-bold text-white mb-2">
+            <h2 className="text-3xl font-extrabold text-white mb-2 tracking-tight">
               What are you craving?
             </h2>
-            <p className="text-brand-muted text-sm mb-4">
+            <p className="text-brand-muted text-sm mb-5 font-medium">
               Pick cuisines or skip for a surprise mix
             </p>
 
@@ -1225,7 +1247,7 @@ function App({ session }) {
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm transition-all ${selectedCategory === cat.id ? "bg-brand-purple/20 border-2 border-brand-purple text-white" : "glass border-2 border-transparent text-brand-muted hover:text-white"}`}
+                    className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${selectedCategory === cat.id ? "bg-brand-purple/20 border-2 border-brand-purple text-white shadow-lg shadow-brand-purple/10" : "glass border-2 border-transparent text-brand-muted hover:text-white hover:bg-white/[0.06]"}`}
                   >
                     <span className="mr-1.5">{cat.emoji}</span>
                     {cat.name}
@@ -1245,7 +1267,7 @@ function App({ session }) {
                   <button
                     key={cuisine.id}
                     onClick={() => toggleCuisine(cuisine.id)}
-                    className={`rounded-xl py-3 px-2 text-center transition-all ${selected ? "bg-white/10 border-2 border-brand-pink" : "glass border-2 border-transparent hover:bg-white/5"}`}
+                    className={`rounded-xl py-3 px-2 text-center transition-all duration-300 ${selected ? "bg-brand-pink/10 border-2 border-brand-pink shadow-lg shadow-brand-pink/10" : "glass border-2 border-transparent hover:bg-white/[0.06]"}`}
                   >
                     <span className="text-xl">{cuisine.emoji}</span>
                     <p className="text-white text-xs mt-1">{cuisine.name}</p>
@@ -1265,7 +1287,7 @@ function App({ session }) {
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                 <button
                   onClick={() => setSelectedOccasion(null)}
-                  className={`flex-shrink-0 px-3 py-2 rounded-xl text-sm transition-all ${!selectedOccasion ? "bg-brand-pink/20 border-2 border-brand-pink text-white" : "glass border-2 border-transparent text-brand-muted hover:text-white"}`}
+                  className={`flex-shrink-0 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${!selectedOccasion ? "bg-brand-pink/20 border-2 border-brand-pink text-white shadow-lg shadow-brand-pink/10" : "glass border-2 border-transparent text-brand-muted hover:text-white hover:bg-white/[0.06]"}`}
                 >
                   🎲 Any
                 </button>
@@ -1277,7 +1299,7 @@ function App({ session }) {
                         selectedOccasion === occ.id ? null : occ.id,
                       )
                     }
-                    className={`flex-shrink-0 px-3 py-2 rounded-xl text-sm transition-all ${selectedOccasion === occ.id ? "bg-brand-pink/20 border-2 border-brand-pink text-white" : "glass border-2 border-transparent text-brand-muted hover:text-white"}`}
+                    className={`flex-shrink-0 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${selectedOccasion === occ.id ? "bg-brand-pink/20 border-2 border-brand-pink text-white shadow-lg shadow-brand-pink/10" : "glass border-2 border-transparent text-brand-muted hover:text-white hover:bg-white/[0.06]"}`}
                   >
                     <span className="mr-1">{occ.emoji}</span>
                     {occ.name}
@@ -1298,7 +1320,7 @@ function App({ session }) {
                     <button
                       key={diet.id}
                       onClick={() => toggleDietary(diet.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs transition-all ${active ? "bg-green-500/20 border-2 border-green-500 text-green-300" : "glass border-2 border-transparent text-brand-muted hover:text-white"}`}
+                      className={`px-3 py-2 rounded-xl text-xs font-medium transition-all duration-300 ${active ? "bg-green-500/15 border-2 border-green-500 text-green-300 shadow-lg shadow-green-500/10" : "glass border-2 border-transparent text-brand-muted hover:text-white hover:bg-white/[0.06]"}`}
                     >
                       <span className="mr-1">{diet.emoji}</span>
                       {diet.name}
@@ -1309,7 +1331,7 @@ function App({ session }) {
             </div>
 
             {/* Open Now toggle + Deal Breakers */}
-            <div className="glass rounded-2xl p-4 mb-3 space-y-3">
+            <div className="glass-strong rounded-2xl p-4 mb-3 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-green-400" />
@@ -1472,7 +1494,7 @@ function App({ session }) {
             <button
               onClick={fetchRestaurants}
               disabled={mode === "local" && !player2Name}
-              className="w-full gradient-bg text-white font-semibold py-4 px-6 rounded-2xl text-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-brand-pink/20 disabled:opacity-30"
+              className="w-full gradient-bg text-white font-bold py-4 px-6 rounded-2xl text-lg flex items-center justify-center gap-2.5 hover:opacity-90 transition-all duration-300 shadow-lg shadow-brand-pink/25 disabled:opacity-30 btn-shine active:scale-[0.98] glow-pink"
             >
               <Play className="w-5 h-5" /> Start Swiping
             </button>
@@ -1483,14 +1505,23 @@ function App({ session }) {
         {step === "loading" && (
           <motion.div
             key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
             className="text-center z-10"
           >
-            <div className="animate-spin w-12 h-12 border-4 border-brand-purple border-t-transparent rounded-full mx-auto mb-4" />
-            <p className="text-brand-muted text-lg">
+            <motion.div
+              className="w-16 h-16 rounded-2xl gradient-bg mx-auto mb-5 flex items-center justify-center glow-purple"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            >
+              <UtensilsCrossed className="w-7 h-7 text-white" />
+            </motion.div>
+            <p className="text-brand-muted-light text-lg font-medium">
               Finding restaurants for you...
+            </p>
+            <p className="text-brand-muted/50 text-sm mt-1">
+              This won&apos;t take long
             </p>
           </motion.div>
         )}
@@ -1507,8 +1538,15 @@ function App({ session }) {
               exit={{ opacity: 0 }}
               className="text-center z-10"
             >
-              <Sparkles className="w-12 h-12 text-brand-pink mx-auto mb-4 animate-pulse" />
-              <p className="text-brand-muted text-lg">Tallying choices…</p>
+              <motion.div
+                animate={{ rotate: [0, 360] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              >
+                <Sparkles className="w-12 h-12 text-brand-pink mx-auto mb-4 drop-shadow-[0_0_15px_rgba(255,107,157,0.4)]" />
+              </motion.div>
+              <p className="text-brand-muted-light text-lg font-medium">
+                Tallying choices…
+              </p>
             </motion.div>
           )}
 
@@ -1524,8 +1562,8 @@ function App({ session }) {
               exit={{ opacity: 0 }}
               className="z-10 max-w-sm w-full flex flex-col min-h-[85vh]"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-brand-purple font-medium text-sm">
+              <div className="flex items-center justify-between mb-3 glass-strong rounded-xl px-4 py-2.5">
+                <span className="text-brand-purple font-bold text-sm tracking-wide">
                   {currentPlayer}&apos;s turn
                 </span>
                 <div className="flex items-center gap-3">
@@ -1533,11 +1571,11 @@ function App({ session }) {
                     {Array.from({ length: VETO_LIMIT }).map((_, i) => (
                       <Zap
                         key={i}
-                        className={`w-4 h-4 transition-colors ${i < VETO_LIMIT - (step === "player1" || step === "remote-swiping" ? player1Vetoes : player2Vetoes) ? "text-yellow-400 fill-yellow-400" : "text-gray-600"}`}
+                        className={`w-4 h-4 transition-all duration-300 ${i < VETO_LIMIT - (step === "player1" || step === "remote-swiping" ? player1Vetoes : player2Vetoes) ? "text-yellow-400 fill-yellow-400 drop-shadow-[0_0_4px_rgba(250,204,21,0.5)]" : "text-gray-700"}`}
                       />
                     ))}
                   </div>
-                  <span className="text-brand-muted text-sm">
+                  <span className="text-brand-muted text-sm font-semibold tabular-nums">
                     {currentIndex + 1}/{restaurants.length}
                   </span>
                 </div>
@@ -1628,15 +1666,15 @@ function App({ session }) {
                       </div>
                     )}
 
-                    <div className="glass rounded-3xl overflow-hidden shadow-2xl">
-                      <div className="relative h-[280px]">
+                    <div className="glass-strong rounded-3xl overflow-hidden shadow-2xl shadow-black/40">
+                      <div className="relative h-[300px]">
                         <img
                           src={currentRestaurant.image}
                           alt={currentRestaurant.name}
                           className="w-full h-full object-cover"
                           draggable={false}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-brand-card via-transparent to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-brand-card via-brand-card/20 to-transparent" />
                         {swipeDir === "right" && (
                           <div className="absolute top-6 left-6 border-4 border-green-400 rounded-xl px-4 py-2 rotate-[-15deg]">
                             <span className="text-green-400 font-bold text-2xl">
@@ -1673,9 +1711,9 @@ function App({ session }) {
                           </div>
                         </div>
                       </div>
-                      <div className="p-4">
-                        <div className="flex items-start justify-between mb-1">
-                          <h3 className="text-xl font-bold text-white">
+                      <div className="p-5">
+                        <div className="flex items-start justify-between mb-1.5">
+                          <h3 className="text-xl font-extrabold text-white tracking-tight">
                             {currentRestaurant.name}
                           </h3>
                           <button
@@ -1683,12 +1721,12 @@ function App({ session }) {
                               e.stopPropagation();
                               setDetailOpen(true);
                             }}
-                            className="ml-2 flex-shrink-0 w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
+                            className="ml-2 flex-shrink-0 w-8 h-8 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-brand-purple/30 transition-all duration-300 active:scale-90"
                           >
                             <Eye className="w-4 h-4 text-brand-muted" />
                           </button>
                         </div>
-                        <div className="flex items-center gap-2 text-brand-muted text-xs mb-2 flex-wrap">
+                        <div className="flex items-center gap-2 text-brand-muted text-xs mb-2.5 flex-wrap">
                           <span>{currentRestaurant.cuisine}</span>
                           <span>&middot;</span>
                           <span>{currentRestaurant.distance} mi</span>
@@ -1714,17 +1752,17 @@ function App({ session }) {
                             </>
                           )}
                         </div>
-                        <div className="flex gap-1.5 flex-wrap mb-2">
+                        <div className="flex gap-1.5 flex-wrap mb-2.5">
                           {currentRestaurant.tags.map((tag) => (
                             <span
                               key={tag}
-                              className="px-2 py-0.5 rounded-md bg-white/5 text-brand-muted text-xs border border-white/10"
+                              className="px-2.5 py-0.5 rounded-lg bg-white/[0.04] text-brand-muted text-xs border border-white/[0.08] font-medium"
                             >
                               {tag}
                             </span>
                           ))}
                         </div>
-                        <p className="text-brand-muted text-sm line-clamp-2 mb-2">
+                        <p className="text-brand-muted text-sm line-clamp-2 mb-3 leading-relaxed">
                           {currentRestaurant.description}
                         </p>
                         {currentRestaurant.popularDishes && (
@@ -1734,7 +1772,7 @@ function App({ session }) {
                               .map((dish) => (
                                 <span
                                   key={dish}
-                                  className="px-2.5 py-1 rounded-full bg-brand-blue/20 text-brand-blue text-xs font-medium"
+                                  className="px-2.5 py-1 rounded-full bg-brand-indigo/15 text-brand-indigo text-xs font-semibold border border-brand-indigo/20"
                                 >
                                   {dish}
                                 </span>
@@ -1769,10 +1807,10 @@ function App({ session }) {
               </AnimatePresence>
 
               {/* Action buttons */}
-              <div className="flex justify-center items-center gap-5 py-5">
+              <div className="flex justify-center items-center gap-6 py-5">
                 <button
                   onClick={() => handleSwipe("left")}
-                  className="w-16 h-16 rounded-full bg-red-500/10 border-2 border-red-500/30 flex items-center justify-center active:scale-90 transition-all"
+                  className="w-16 h-16 rounded-full bg-red-500/10 border-2 border-red-500/30 flex items-center justify-center active:scale-75 transition-all duration-200 hover:bg-red-500/20 hover:border-red-400/50 hover:shadow-lg hover:shadow-red-500/20"
                 >
                   <ThumbsDown className="w-7 h-7 text-red-400" />
                 </button>
@@ -1783,13 +1821,13 @@ function App({ session }) {
                       ? player1Vetoes
                       : player2Vetoes) >= VETO_LIMIT
                   }
-                  className={`w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition-all ${(step === "player1" || step === "remote-swiping" ? player1Vetoes : player2Vetoes) >= VETO_LIMIT ? "bg-gray-800/50 border-2 border-gray-700 opacity-40 cursor-not-allowed" : "bg-yellow-500/10 border-2 border-yellow-500/40 hover:bg-yellow-500/20"}`}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center active:scale-75 transition-all duration-200 ${(step === "player1" || step === "remote-swiping" ? player1Vetoes : player2Vetoes) >= VETO_LIMIT ? "bg-gray-800/50 border-2 border-gray-700 opacity-30 cursor-not-allowed" : "bg-yellow-500/10 border-2 border-yellow-500/40 hover:bg-yellow-500/20 hover:shadow-lg hover:shadow-yellow-500/20"}`}
                 >
                   <Zap className="w-5 h-5 text-yellow-400" />
                 </button>
                 <button
                   onClick={() => handleSwipe("right")}
-                  className="w-16 h-16 rounded-full bg-green-500/10 border-2 border-green-500/30 flex items-center justify-center active:scale-90 transition-all"
+                  className="w-16 h-16 rounded-full bg-green-500/10 border-2 border-green-500/30 flex items-center justify-center active:scale-75 transition-all duration-200 hover:bg-green-500/20 hover:border-green-400/50 hover:shadow-lg hover:shadow-green-500/20 pulse-ring text-green-400"
                 >
                   <Heart className="w-8 h-8 text-green-400" />
                 </button>
@@ -1839,10 +1877,10 @@ function App({ session }) {
             >
               📱
             </motion.div>
-            <h2 className="text-3xl font-bold gradient-text mb-3">
+            <h2 className="text-4xl font-extrabold gradient-text mb-3 tracking-tight">
               Pass the phone!
             </h2>
-            <p className="text-brand-muted text-lg mb-2">
+            <p className="text-brand-muted-light text-lg mb-2 font-medium">
               Hand it to{" "}
               <span className="text-white font-semibold">
                 {player2Name || "Player 2"}
@@ -1895,7 +1933,7 @@ function App({ session }) {
                       marginTop: -60,
                     }}
                   />
-                  <Sparkles className="w-20 h-20 text-brand-pink mx-auto mb-3 relative z-10" />
+                  <Sparkles className="w-20 h-20 text-brand-pink mx-auto mb-3 relative z-10 drop-shadow-[0_0_20px_rgba(255,107,157,0.5)]" />
                   {/* Confetti burst - 30 particles in two waves */}
                   {CONFETTI_PARTICLES.map((p, i) => (
                     <motion.div
@@ -1934,7 +1972,7 @@ function App({ session }) {
                   ))}
                 </motion.div>
                 <motion.h2
-                  className="text-4xl font-bold gradient-text mb-1"
+                  className="text-5xl font-extrabold gradient-text mb-1 tracking-tight"
                   initial={{ scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
@@ -1960,16 +1998,16 @@ function App({ session }) {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.15 }}
-                        className="glass rounded-2xl overflow-hidden"
+                        className="glass-strong rounded-2xl overflow-hidden glow-match"
                       >
                         <div className="flex items-start gap-3 p-4">
                           <img
                             src={restaurant.image}
                             alt={restaurant.name}
-                            className="w-16 h-24 object-cover rounded-xl flex-shrink-0"
+                            className="w-16 h-24 object-cover rounded-xl flex-shrink-0 shadow-lg"
                           />
                           <div className="flex-1 text-left min-w-0">
-                            <h3 className="text-white font-bold text-sm">
+                            <h3 className="text-white font-extrabold text-sm tracking-tight">
                               {restaurant.name}
                             </h3>
                             <p className="text-brand-muted text-xs mb-1">
@@ -1993,7 +2031,7 @@ function App({ session }) {
                                   setSelectedRestaurant(restaurant);
                                   setStep("delivery");
                                 }}
-                                className="px-3 py-1 rounded-lg bg-brand-purple/20 text-brand-purple text-xs font-medium hover:bg-brand-purple/30 transition-colors flex items-center gap-1"
+                                className="px-3 py-1.5 rounded-lg bg-brand-purple/15 text-brand-purple text-xs font-semibold hover:bg-brand-purple/25 transition-all duration-200 flex items-center gap-1 active:scale-95"
                               >
                                 <Truck className="w-3 h-3" /> Order
                               </button>
@@ -2003,7 +2041,7 @@ function App({ session }) {
                                     ? removeFromFavorites(restaurant.id)
                                     : addToFavorites(restaurant)
                                 }
-                                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 ${inFavorites ? "bg-green-500/20 text-green-400" : "bg-brand-pink/20 text-brand-pink hover:bg-brand-pink/30"}`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 flex items-center gap-1 active:scale-95 ${inFavorites ? "bg-green-500/15 text-green-400" : "bg-brand-pink/15 text-brand-pink hover:bg-brand-pink/25"}`}
                               >
                                 {inFavorites ? (
                                   <Check className="w-3 h-3" />
@@ -2022,17 +2060,17 @@ function App({ session }) {
               </>
             ) : (
               <>
-                <MapPin className="w-16 h-16 text-brand-muted mx-auto mb-4" />
-                <h2 className="text-3xl font-bold text-white mb-2">
+                <MapPin className="w-16 h-16 text-brand-muted mx-auto mb-4 opacity-50" />
+                <h2 className="text-3xl font-extrabold text-white mb-2 tracking-tight">
                   No Matches
                 </h2>
-                <p className="text-brand-muted mb-4">
+                <p className="text-brand-muted font-medium mb-4">
                   You two have very different taste!
                 </p>
                 {!tiebreakerMode && (
                   <button
                     onClick={startTiebreaker}
-                    className="w-full bg-yellow-500/20 border-2 border-yellow-500/40 text-yellow-300 font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-yellow-500/30 transition-colors mb-4"
+                    className="w-full bg-yellow-500/15 border-2 border-yellow-500/30 text-yellow-300 font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-yellow-500/25 transition-all duration-300 mb-4 btn-shine active:scale-[0.98]"
                   >
                     <Trophy className="w-5 h-5" /> Tiebreaker Round
                   </button>
@@ -2049,13 +2087,13 @@ function App({ session }) {
             <div className="space-y-3">
               <button
                 onClick={shareResults}
-                className="w-full glass text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-colors border border-white/10"
+                className="w-full glass-strong text-white font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all duration-300 active:scale-[0.98]"
               >
                 <Share2 className="w-4 h-4" /> Share Results
               </button>
               <button
                 onClick={resetGame}
-                className="w-full gradient-bg text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                className="w-full gradient-bg text-white font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-all duration-300 btn-shine glow-pink active:scale-[0.98]"
               >
                 <RotateCcw className="w-4 h-4" /> Play Again
               </button>
@@ -2115,7 +2153,7 @@ function App({ session }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md"
             onClick={() => setDetailOpen(false)}
           >
             <motion.div
@@ -2123,27 +2161,27 @@ function App({ session }) {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="absolute bottom-0 left-0 right-0 max-h-[85vh] bg-brand-bg border-t border-white/10 rounded-t-3xl overflow-y-auto"
+              className="absolute bottom-0 left-0 right-0 max-h-[85vh] bg-brand-bg border-t border-white/[0.08] rounded-t-3xl overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Handle bar */}
               <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full bg-white/20" />
+                <div className="w-12 h-1.5 rounded-full bg-white/15" />
               </div>
 
               {/* Hero image */}
-              <div className="relative h-[200px] mx-4 rounded-2xl overflow-hidden mb-4">
+              <div className="relative h-[220px] mx-4 rounded-2xl overflow-hidden mb-4">
                 <img
                   src={currentRestaurant.image}
                   alt={currentRestaurant.name}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-brand-bg via-transparent to-transparent" />
-                <div className="absolute bottom-3 left-3 right-3">
-                  <h2 className="text-2xl font-bold text-white">
+                <div className="absolute inset-0 bg-gradient-to-t from-brand-bg via-brand-bg/30 to-transparent" />
+                <div className="absolute bottom-3 left-4 right-4">
+                  <h2 className="text-2xl font-extrabold text-white tracking-tight drop-shadow-lg">
                     {currentRestaurant.name}
                   </h2>
-                  <p className="text-brand-muted text-sm">
+                  <p className="text-brand-muted-light text-sm font-medium">
                     {currentRestaurant.cuisine} &middot;{" "}
                     {"$".repeat(currentRestaurant.priceLevel)}
                   </p>
@@ -2153,7 +2191,7 @@ function App({ session }) {
               <div className="px-5 pb-8 space-y-4">
                 {/* Quick stats */}
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="glass rounded-xl p-3 text-center">
+                  <div className="glass-strong rounded-xl p-3 text-center">
                     <Star className="w-5 h-5 text-yellow-400 fill-yellow-400 mx-auto mb-1" />
                     <p className="text-white font-bold text-sm">
                       {currentRestaurant.rating}
@@ -2162,14 +2200,14 @@ function App({ session }) {
                       {currentRestaurant.reviews} reviews
                     </p>
                   </div>
-                  <div className="glass rounded-xl p-3 text-center">
+                  <div className="glass-strong rounded-xl p-3 text-center">
                     <Navigation className="w-5 h-5 text-brand-purple mx-auto mb-1" />
                     <p className="text-white font-bold text-sm">
                       {currentRestaurant.distance} mi
                     </p>
                     <p className="text-brand-muted text-xs">away</p>
                   </div>
-                  <div className="glass rounded-xl p-3 text-center">
+                  <div className="glass-strong rounded-xl p-3 text-center">
                     <Clock className="w-5 h-5 text-brand-pink mx-auto mb-1" />
                     <p className="text-white font-bold text-sm">
                       {currentRestaurant.waitTime}
@@ -2179,7 +2217,7 @@ function App({ session }) {
                 </div>
 
                 {/* Open status & hours */}
-                <div className="glass rounded-xl p-4">
+                <div className="glass-strong rounded-xl p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div
@@ -2198,14 +2236,14 @@ function App({ session }) {
                 </div>
 
                 {/* Description */}
-                <p className="text-brand-muted text-sm leading-relaxed">
+                <p className="text-brand-muted-light text-sm leading-relaxed">
                   {currentRestaurant.description}
                 </p>
 
                 {/* Popular dishes */}
                 {currentRestaurant.popularDishes && (
                   <div>
-                    <h4 className="text-white font-semibold text-sm mb-2 flex items-center gap-2">
+                    <h4 className="text-white font-bold text-sm mb-2 flex items-center gap-2">
                       <UtensilsCrossed className="w-4 h-4 text-brand-pink" />{" "}
                       Popular Dishes
                     </h4>
@@ -2437,10 +2475,10 @@ function App({ session }) {
               >
                 {ONBOARDING_SLIDES[onboardingStep].emoji}
               </motion.div>
-              <h2 className="text-2xl font-bold text-white mb-3">
+              <h2 className="text-3xl font-extrabold text-white mb-3 tracking-tight">
                 {ONBOARDING_SLIDES[onboardingStep].title}
               </h2>
-              <p className="text-brand-muted text-base mb-8 leading-relaxed">
+              <p className="text-brand-muted-light text-base mb-8 leading-relaxed">
                 {ONBOARDING_SLIDES[onboardingStep].desc}
               </p>
 
@@ -2449,7 +2487,7 @@ function App({ session }) {
                 {ONBOARDING_SLIDES.map((_, i) => (
                   <div
                     key={i}
-                    className={`h-2 rounded-full transition-all ${i === onboardingStep ? "w-6 gradient-bg" : "w-2 bg-white/20"}`}
+                    className={`h-2 rounded-full transition-all duration-500 ${i === onboardingStep ? "w-8 gradient-bg glow-pink" : "w-2 bg-white/15"}`}
                   />
                 ))}
               </div>
@@ -2458,7 +2496,7 @@ function App({ session }) {
                 {onboardingStep > 0 && (
                   <button
                     onClick={() => setOnboardingStep((s) => s - 1)}
-                    className="flex-1 glass text-white font-semibold py-3 rounded-xl hover:bg-white/10 transition-colors"
+                    className="flex-1 glass-strong text-white font-bold py-3 rounded-xl hover:bg-white/10 transition-all duration-300 active:scale-[0.98]"
                   >
                     Back
                   </button>
@@ -2466,14 +2504,14 @@ function App({ session }) {
                 {onboardingStep < ONBOARDING_SLIDES.length - 1 ? (
                   <button
                     onClick={() => setOnboardingStep((s) => s + 1)}
-                    className="flex-1 gradient-bg text-white font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity"
+                    className="flex-1 gradient-bg text-white font-bold py-3 rounded-xl hover:opacity-90 transition-all duration-300 btn-shine active:scale-[0.98]"
                   >
                     Next
                   </button>
                 ) : (
                   <button
                     onClick={finishOnboarding}
-                    className="flex-1 gradient-bg text-white font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity"
+                    className="flex-1 gradient-bg text-white font-bold py-3 rounded-xl hover:opacity-90 transition-all duration-300 btn-shine glow-pink active:scale-[0.98]"
                   >
                     Let&apos;s Go! 🍽️
                   </button>

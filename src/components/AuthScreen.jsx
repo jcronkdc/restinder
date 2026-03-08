@@ -50,23 +50,31 @@ export function AuthScreen({ onAuth }) {
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden">
-      <div className="absolute top-[-200px] left-[-200px] w-[500px] h-[500px] rounded-full bg-brand-pink/10 blur-[120px]" />
-      <div className="absolute bottom-[-200px] right-[-200px] w-[500px] h-[500px] rounded-full bg-brand-purple/10 blur-[120px]" />
+    <main className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden noise-overlay">
+      <div className="animated-bg">
+        <div className="animated-bg-orb" />
+      </div>
 
       <AnimatePresence mode="wait">
         <motion.div
           key={mode}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: 30, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -20, scale: 0.98 }}
+          transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
           className="text-center z-10 max-w-sm w-full"
         >
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl gradient-bg mb-4 shadow-lg shadow-brand-pink/30">
-            <Heart className="w-10 h-10 text-white" />
-          </div>
-          <h1 className="text-4xl font-bold gradient-text mb-2">Restinder</h1>
-          <p className="text-brand-muted text-sm mb-6">
+          <motion.div
+            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl gradient-bg mb-5 glow-pink"
+            animate={{ rotate: [0, -5, 5, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <Heart className="w-10 h-10 text-white drop-shadow-lg" />
+          </motion.div>
+          <h1 className="text-5xl font-extrabold gradient-text mb-2 tracking-tight">
+            Restinder
+          </h1>
+          <p className="text-brand-muted text-sm mb-7 font-medium">
             {mode === "login"
               ? "Welcome back! Sign in to continue."
               : mode === "signup"
@@ -94,7 +102,10 @@ export function AuthScreen({ onAuth }) {
             </motion.div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form
+            onSubmit={handleSubmit}
+            className="glass-strong rounded-2xl p-5 space-y-3"
+          >
             {mode === "signup" && (
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-muted" />
@@ -103,7 +114,7 @@ export function AuthScreen({ onAuth }) {
                   placeholder="Your name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-white placeholder-brand-muted focus:outline-none focus:border-brand-purple/50 transition-colors"
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl py-3.5 pl-11 pr-4 text-white placeholder-brand-muted/60 focus:outline-none focus:border-brand-purple/40 transition-all duration-300"
                   autoComplete="name"
                 />
               </div>
@@ -116,7 +127,7 @@ export function AuthScreen({ onAuth }) {
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-white placeholder-brand-muted focus:outline-none focus:border-brand-purple/50 transition-colors"
+                className="w-full bg-white/[0.03] border border-white/10 rounded-xl py-3.5 pl-11 pr-4 text-white placeholder-brand-muted/60 focus:outline-none focus:border-brand-purple/40 transition-all duration-300"
                 required
                 autoComplete="email"
               />
@@ -130,10 +141,12 @@ export function AuthScreen({ onAuth }) {
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-11 text-white placeholder-brand-muted focus:outline-none focus:border-brand-purple/50 transition-colors"
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl py-3.5 pl-11 pr-11 text-white placeholder-brand-muted/60 focus:outline-none focus:border-brand-purple/40 transition-all duration-300"
                   required
                   minLength={6}
-                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  autoComplete={
+                    mode === "signup" ? "new-password" : "current-password"
+                  }
                 />
                 <button
                   type="button"
@@ -152,7 +165,7 @@ export function AuthScreen({ onAuth }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full gradient-bg text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-brand-pink/20 disabled:opacity-50"
+              className="w-full gradient-bg text-white font-bold py-3.5 px-6 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-all duration-300 shadow-lg shadow-brand-pink/25 disabled:opacity-50 btn-shine active:scale-[0.98]"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
