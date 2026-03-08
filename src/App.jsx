@@ -141,6 +141,19 @@ function App() {
   // ── Delivery ──
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
 
+  // ── Onboarding tutorial ──
+  const [showOnboarding, setShowOnboarding] = useState(
+    () => !loadSetting("rs_onboarded", false),
+  );
+  const [onboardingStep, setOnboardingStep] = useState(0);
+
+  // ── PWA install ──
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+
+  // ── Sound effects ──
+  const audioCtxRef = useRef(null);
+
   // ═══ EFFECTS ═══
 
   // Save settings when they change
@@ -162,6 +175,18 @@ function App() {
   useEffect(() => {
     saveSetting("rs_favorites", favorites);
   }, [favorites]);
+
+  // PWA install prompt
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      // Show banner after 5s if not already installed
+      setTimeout(() => setShowInstallBanner(true), 5000);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
 
   // Initialize user in Supabase
   useEffect(() => {
@@ -497,6 +522,7 @@ function App() {
 
       setSwipeDir(direction);
       haptic(direction === "right" ? "medium" : "light");
+      playSound(direction === "right" ? "like" : "nope");
 
       if (direction === "right") {
         if (step === "player1" || step === "remote-swiping") {
@@ -568,6 +594,7 @@ function App() {
     }
 
     haptic("heavy");
+    playSound("veto");
     setVetoFlash(true);
     setTimeout(() => setVetoFlash(false), 600);
     handleSwipe("left");
@@ -658,6 +685,111 @@ function App() {
     try {
       await navigator.clipboard.writeText(text);
     } catch {}
+  };
+
+  // Sound effects (Web Audio API - no files needed)
+  const getAudioCtx = () => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (
+        window.AudioContext || window.webkitAudioContext
+      )();
+    }
+    return audioCtxRef.current;
+  };
+
+  const playSound = (type) => {
+    try {
+      const ctx = getAudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      gain.gain.value = 0.08;
+
+      if (type === "swipe") {
+        // Quick whoosh - rising pitch
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(300, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.15);
+      } else if (type === "like") {
+        // Happy ding - two ascending tones
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(523, ctx.currentTime);
+        osc.frequency.setValueAtTime(659, ctx.currentTime + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.25);
+      } else if (type === "match") {
+        // Celebration fanfare - three ascending notes
+        osc.type = "triangle";
+        gain.gain.value = 0.12;
+        osc.frequency.setValueAtTime(523, ctx.currentTime);
+        osc.frequency.setValueAtTime(659, ctx.currentTime + 0.15);
+        osc.frequency.setValueAtTime(784, ctx.currentTime + 0.3);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.6);
+      } else if (type === "veto") {
+        // Low slam buzz
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(150, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.25);
+      } else if (type === "nope") {
+        // Descending tone
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(400, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.15);
+      }
+    } catch {}
+  };
+
+  // Onboarding helpers
+  const ONBOARDING_SLIDES = [
+    {
+      emoji: "👋",
+      title: "Welcome to Restinder!",
+      desc: "Swipe through restaurants together to find the perfect place to eat.",
+    },
+    {
+      emoji: "👈👉",
+      title: "Swipe Right to Like",
+      desc: "Swipe right or tap ❤️ if you'd eat there. Swipe left or tap 👎 to pass.",
+    },
+    {
+      emoji: "⚡",
+      title: "Super Veto Power",
+      desc: "Use your 3 Super Vetoes to instantly reject a restaurant your partner will never see!",
+    },
+    {
+      emoji: "🎉",
+      title: "Find Your Match",
+      desc: "When you both like the same restaurant, it's a match! Get directions and order delivery.",
+    },
+  ];
+
+  const finishOnboarding = () => {
+    setShowOnboarding(false);
+    saveSetting("rs_onboarded", true);
+  };
+
+  // PWA install
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") {
+      setDeferredPrompt(null);
+      setShowInstallBanner(false);
+    }
   };
 
   // ═══ COMPUTED ═══
@@ -1611,44 +1743,93 @@ function App() {
                   animate={{ scale: 1 }}
                   transition={{ type: "spring", stiffness: 200 }}
                   className="relative"
+                  onAnimationComplete={() => {
+                    playSound("match");
+                    haptic("heavy");
+                  }}
                 >
-                  <Sparkles className="w-16 h-16 text-brand-pink mx-auto mb-3" />
-                  {Array.from({ length: 12 }).map((_, i) => (
-                    <motion.div
-                      key={i}
-                      className="absolute w-2 h-2 rounded-full"
-                      style={{
-                        backgroundColor: [
-                          "#ff6b9d",
-                          "#c084fc",
-                          "#60a5fa",
-                          "#34d399",
-                          "#fbbf24",
-                        ][i % 5],
-                        left: "50%",
-                        top: "50%",
-                      }}
-                      initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-                      animate={{
-                        x:
-                          Math.cos((i * 30 * Math.PI) / 180) *
-                          (80 + Math.random() * 40),
-                        y:
-                          Math.sin((i * 30 * Math.PI) / 180) *
-                          (80 + Math.random() * 40),
-                        opacity: 0,
-                        scale: 0,
-                      }}
-                      transition={{ duration: 1, delay: 0.2 }}
-                    />
-                  ))}
+                  {/* Pulsing glow */}
+                  <motion.div
+                    className="absolute inset-0 rounded-full bg-brand-pink/20 blur-3xl"
+                    animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    style={{
+                      width: 120,
+                      height: 120,
+                      left: "50%",
+                      top: "50%",
+                      marginLeft: -60,
+                      marginTop: -60,
+                    }}
+                  />
+                  <Sparkles className="w-20 h-20 text-brand-pink mx-auto mb-3 relative z-10" />
+                  {/* Confetti burst - 30 particles in two waves */}
+                  {Array.from({ length: 30 }).map((_, i) => {
+                    const colors = [
+                      "#ff6b9d",
+                      "#c084fc",
+                      "#60a5fa",
+                      "#34d399",
+                      "#fbbf24",
+                      "#f97316",
+                      "#ec4899",
+                    ];
+                    const angle = (i * 12 * Math.PI) / 180;
+                    const radius = 80 + Math.random() * 80;
+                    const size = 4 + Math.random() * 8;
+                    const isRect = i % 3 === 0;
+                    return (
+                      <motion.div
+                        key={i}
+                        className={
+                          isRect ? "absolute" : "absolute rounded-full"
+                        }
+                        style={{
+                          backgroundColor: colors[i % colors.length],
+                          width: isRect ? size * 0.6 : size,
+                          height: size,
+                          left: "50%",
+                          top: "50%",
+                          borderRadius: isRect ? 2 : "50%",
+                        }}
+                        initial={{
+                          x: 0,
+                          y: 0,
+                          opacity: 1,
+                          scale: 1,
+                          rotate: 0,
+                        }}
+                        animate={{
+                          x: Math.cos(angle) * radius,
+                          y: Math.sin(angle) * radius - 40,
+                          opacity: 0,
+                          scale: 0,
+                          rotate: Math.random() * 720 - 360,
+                        }}
+                        transition={{
+                          duration: 1.2 + Math.random() * 0.5,
+                          delay: i < 15 ? 0.1 : 0.4,
+                        }}
+                      />
+                    );
+                  })}
                 </motion.div>
-                <h2 className="text-3xl font-bold gradient-text mb-1">
+                <motion.h2
+                  className="text-4xl font-bold gradient-text mb-1"
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
+                >
                   {matches.length} Match{matches.length !== 1 ? "es" : ""}!
-                </h2>
-                <p className="text-brand-muted mb-5">
+                </motion.h2>
+                <motion.p
+                  className="text-brand-muted mb-5 text-lg"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
                   You both want to eat here 🎉
-                </p>
+                </motion.p>
                 <div className="space-y-3 mb-6">
                   {matches.map((restaurant, i) => {
                     const inFavorites = favorites.some(
@@ -2106,6 +2287,136 @@ function App() {
                 )}
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══════════ Onboarding Tutorial ═══════════ */}
+      <AnimatePresence>
+        {showOnboarding && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-md flex items-center justify-center p-6"
+          >
+            <motion.div
+              key={onboardingStep}
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: -20 }}
+              className="max-w-sm w-full text-center"
+            >
+              <motion.div
+                className="text-7xl mb-6"
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{
+                  duration: 1.5,
+                  repeat: Infinity,
+                  repeatDelay: 0.5,
+                }}
+              >
+                {ONBOARDING_SLIDES[onboardingStep].emoji}
+              </motion.div>
+              <h2 className="text-2xl font-bold text-white mb-3">
+                {ONBOARDING_SLIDES[onboardingStep].title}
+              </h2>
+              <p className="text-brand-muted text-base mb-8 leading-relaxed">
+                {ONBOARDING_SLIDES[onboardingStep].desc}
+              </p>
+
+              {/* Progress dots */}
+              <div className="flex justify-center gap-2 mb-6">
+                {ONBOARDING_SLIDES.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-2 rounded-full transition-all ${i === onboardingStep ? "w-6 gradient-bg" : "w-2 bg-white/20"}`}
+                  />
+                ))}
+              </div>
+
+              <div className="flex gap-3">
+                {onboardingStep > 0 && (
+                  <button
+                    onClick={() => setOnboardingStep((s) => s - 1)}
+                    className="flex-1 glass text-white font-semibold py-3 rounded-xl hover:bg-white/10 transition-colors"
+                  >
+                    Back
+                  </button>
+                )}
+                {onboardingStep < ONBOARDING_SLIDES.length - 1 ? (
+                  <button
+                    onClick={() => setOnboardingStep((s) => s + 1)}
+                    className="flex-1 gradient-bg text-white font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity"
+                  >
+                    Next
+                  </button>
+                ) : (
+                  <button
+                    onClick={finishOnboarding}
+                    className="flex-1 gradient-bg text-white font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity"
+                  >
+                    Let&apos;s Go! 🍽️
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={finishOnboarding}
+                className="mt-4 text-brand-muted/50 text-xs hover:text-brand-muted transition-colors"
+              >
+                Skip tutorial
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══════════ PWA Install Banner ═══════════ */}
+      <AnimatePresence>
+        {showInstallBanner && deferredPrompt && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: "spring", damping: 20, stiffness: 200 }}
+            className="fixed bottom-4 left-4 right-4 z-[55] max-w-md mx-auto"
+          >
+            <div className="glass rounded-2xl p-4 border border-white/10 shadow-2xl">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center flex-shrink-0">
+                  <Heart className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-white font-bold text-sm">
+                    Install Restinder
+                  </h3>
+                  <p className="text-brand-muted text-xs mt-0.5">
+                    Add to your home screen for the full app experience
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowInstallBanner(false)}
+                  className="text-brand-muted/50 hover:text-white transition-colors flex-shrink-0"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={handleInstall}
+                  className="flex-1 gradient-bg text-white font-semibold py-2.5 rounded-xl text-sm hover:opacity-90 transition-opacity"
+                >
+                  Install App
+                </button>
+                <button
+                  onClick={() => setShowInstallBanner(false)}
+                  className="px-4 glass text-brand-muted text-sm rounded-xl hover:bg-white/10 transition-colors"
+                >
+                  Later
+                </button>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
