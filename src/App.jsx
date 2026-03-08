@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart,
@@ -46,6 +52,29 @@ import {
 import { DeliveryOrder } from "./components/DeliveryOrder";
 
 const VETO_LIMIT = 3;
+
+const ONBOARDING_SLIDES = [
+  {
+    emoji: "👋",
+    title: "Welcome to Restinder!",
+    desc: "Swipe through restaurants together to find the perfect place to eat.",
+  },
+  {
+    emoji: "👈👉",
+    title: "Swipe Right to Like",
+    desc: "Swipe right or tap ❤️ if you'd eat there. Swipe left or tap 👎 to pass.",
+  },
+  {
+    emoji: "⚡",
+    title: "Super Veto Power",
+    desc: "Use your 3 Super Vetoes to instantly reject a restaurant your partner will never see!",
+  },
+  {
+    emoji: "🎉",
+    title: "Find Your Match",
+    desc: "When you both like the same restaurant, it's a match! Get directions and order delivery.",
+  },
+];
 
 // localStorage helpers
 function loadSetting(key, fallback) {
@@ -242,6 +271,12 @@ function App() {
     }
   }, [myName, myUserId]);
 
+  // Keep a ref to the latest handleSwipe so the timer never captures a stale closure
+  const handleSwipeRef = useRef(null);
+  useEffect(() => {
+    handleSwipeRef.current = handleSwipe;
+  }, [handleSwipe]);
+
   // Timer logic
   useEffect(() => {
     if (
@@ -252,7 +287,7 @@ function App() {
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            handleSwipe("left"); // auto-nope on timeout
+            handleSwipeRef.current?.("left"); // auto-nope on timeout
             return timerSeconds;
           }
           return prev - 1;
@@ -648,7 +683,7 @@ function App() {
       .filter((r) => player1Likes.has(r.id) || player2Likes.has(r.id))
       .sort((a, b) => {
         const aScore =
-          (player1Likes.has(a.id) ? 1 : 0) + (player2Likes.has(b.id) ? 1 : 0);
+          (player1Likes.has(a.id) ? 1 : 0) + (player2Likes.has(a.id) ? 1 : 0);
         const bScore =
           (player1Likes.has(b.id) ? 1 : 0) + (player2Likes.has(b.id) ? 1 : 0);
         return bScore - aScore;
@@ -752,30 +787,6 @@ function App() {
     } catch {}
   };
 
-  // Onboarding helpers
-  const ONBOARDING_SLIDES = [
-    {
-      emoji: "👋",
-      title: "Welcome to Restinder!",
-      desc: "Swipe through restaurants together to find the perfect place to eat.",
-    },
-    {
-      emoji: "👈👉",
-      title: "Swipe Right to Like",
-      desc: "Swipe right or tap ❤️ if you'd eat there. Swipe left or tap 👎 to pass.",
-    },
-    {
-      emoji: "⚡",
-      title: "Super Veto Power",
-      desc: "Use your 3 Super Vetoes to instantly reject a restaurant your partner will never see!",
-    },
-    {
-      emoji: "🎉",
-      title: "Find Your Match",
-      desc: "When you both like the same restaurant, it's a match! Get directions and order delivery.",
-    },
-  ];
-
   const finishOnboarding = () => {
     setShowOnboarding(false);
     saveSetting("rs_onboarded", true);
@@ -794,8 +805,12 @@ function App() {
 
   // ═══ COMPUTED ═══
 
-  const matches = restaurants.filter(
-    (r) => player1Likes.has(r.id) && player2Likes.has(r.id),
+  const matches = useMemo(
+    () =>
+      restaurants.filter(
+        (r) => player1Likes.has(r.id) && player2Likes.has(r.id),
+      ),
+    [restaurants, player1Likes, player2Likes],
   );
   const currentRestaurant = restaurants[currentIndex];
   const progress =

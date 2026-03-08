@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   MapPin,
@@ -56,6 +56,14 @@ export function DeliveryOrder({ restaurant, onBack, onDeliveryCreated }) {
   const [quote, setQuote] = useState(null);
   const [delivery, setDelivery] = useState(null);
   const [trackingData, setTrackingData] = useState(null);
+  const pollIntervalRef = useRef(null);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, []);
 
   const [form, setForm] = useState({
     dropoff_address: "",
@@ -152,7 +160,8 @@ export function DeliveryOrder({ restaurant, onBack, onDeliveryCreated }) {
   };
 
   const pollDeliveryStatus = (deliveryId) => {
-    const interval = setInterval(async () => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    pollIntervalRef.current = setInterval(async () => {
       try {
         const response = await fetch(`${API_BASE}/deliveries/${deliveryId}`);
         const data = await response.json();
@@ -161,15 +170,13 @@ export function DeliveryOrder({ restaurant, onBack, onDeliveryCreated }) {
         if (
           ["delivered", "cancelled", "returned"].includes(data.delivery_status)
         ) {
-          clearInterval(interval);
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
         }
       } catch (err) {
         console.error("Polling error:", err);
       }
     }, 10000);
-
-    // Cleanup on unmount
-    return () => clearInterval(interval);
   };
 
   const handleCancelDelivery = async () => {

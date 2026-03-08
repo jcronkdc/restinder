@@ -1,48 +1,67 @@
-# Restaurant Tinder - "Restinder"
+# Restinder 🍽️
 
-A Tinder-like app for finding the perfect restaurant for groups and dates. Swipe through restaurants together and find matches that everyone in your group likes!
+A Tinder-style app for couples and groups to settle the eternal question: **"Where should we eat?"** Swipe through restaurants together, find matches, and order delivery — all in one place.
 
 ## Features
 
-- **Tinder-like swipe interface** - Swipe right for like, left for nope
-- **Group sessions** - Create or join sessions with friends or your date
-- **Location-based** - Automatically finds restaurants near you
-- **Matching algorithm** - Shows restaurants that everyone in the group likes
-- **Mobile-optimized** - Works great on phones with touch gestures
-- **PWA ready** - Install as a mobile app
+### Core
 
-## How It Works
+- **Swipe-to-match** — Framer Motion drag gestures with like/nope indicators
+- **Local & Remote modes** — Same-phone handoff or real-time Supabase multiplayer
+- **Super Veto** — 3 power vetoes per player to instantly kill a pick
+- **Tiebreaker round** — Re-vote on top picks when nobody agrees
+- **DoorDash delivery** — Order directly from match results via Drive API
 
-1. **Create or Join a Session** - Start a new group session or join an existing one
-2. **Swipe Through Restaurants** - Each person swipes independently through local restaurants
-3. **Find Matches** - The app shows restaurants that everyone in the group liked
-4. **Choose Your Spot** - Pick from the matches and get directions!
+### Filters
+
+- **12 cuisine types** with multi-select
+- **6 category tabs** (Popular, Trending, Hidden Gems, Quick Bites, Top Rated, Date Night)
+- **7 dietary restrictions** (Vegetarian, Vegan, GF, Halal, Kosher, Nut-Free, Pescatarian)
+- **7 occasion tags** (Date Night, Quick Lunch, Family, Brunch, Late Night, Special Occasion, Dinner)
+- **Price range** ($–$$$$), **distance slider** (0.5–10 mi), **rating floor**, **Open Now** toggle
+
+### UX Polish
+
+- **Dark glassmorphism theme** with gradient accents
+- **Animated onboarding tutorial** (4-slide walkthrough for first-time users)
+- **Sound effects** via Web Audio API (whoosh, ding, fanfare, buzz — no audio files)
+- **Haptic feedback** on swipe, veto, and match
+- **Enhanced match celebration** — 30-particle confetti burst with pulsing glow
+- **Restaurant detail view** — Slide-up panel with hours, dietary badges, reviews, Google Maps link
+- **Share results** — Native Share API with clipboard fallback
+- **Favorites panel** — Save, mark visited, persistent via localStorage
+- **PWA install banner** — Custom animated prompt
+- **Timer mode** — Configurable per-card countdown
+
+## Tech Stack
+
+| Layer           | Tool                                 |
+| --------------- | ------------------------------------ |
+| Framework       | React 18 + Vite                      |
+| Animations      | Framer Motion                        |
+| Styling         | Tailwind CSS (dark theme)            |
+| Icons           | Lucide React                         |
+| Realtime / Auth | Supabase (Postgres, Realtime)        |
+| Delivery        | DoorDash Drive API (Express backend) |
+| PWA             | vite-plugin-pwa                      |
 
 ## Getting Started
 
-### Prerequisites
-- Node.js 16+
-- npm or yarn
-
-### Installation
-
-1. Clone the repository
 ```bash
-git clone <repository-url>
-cd restaurant-tinder
-```
+# Clone
+git clone https://github.com/jcronkdc/restinder.git
+cd restinder
 
-2. Install dependencies
-```bash
+# Install & run frontend
 npm install
-```
+npm run dev          # → http://localhost:3000
 
-3. Start the development server
-```bash
-npm run dev
+# (Optional) Run delivery backend
+cd server
+cp .env.example .env   # Add your DoorDash credentials
+npm install
+npm run dev             # → http://localhost:3001
 ```
-
-4. Open your browser and navigate to `http://localhost:3000`
 
 ### Build for Production
 
@@ -50,88 +69,30 @@ npm run dev
 npm run build
 ```
 
-## Tech Stack
-
-- **Frontend**: React 18 with Vite
-- **Styling**: TailwindCSS
-- **Icons**: Lucide React
-- **PWA**: Vite PWA Plugin
-- **Geolocation**: Browser Geolocation API
-- **Touch Gestures**: Custom swipe implementation
-
 ## Project Structure
 
 ```
 src/
+├── App.jsx                    # Main component (swiping, filters, results, overlays)
 ├── components/
-│   ├── GroupSession.jsx      # Session creation/joining
-│   ├── RestaurantCard.jsx    # Swipeable restaurant cards
-│   ├── MatchResults.jsx      # Results display
-│   └── LoadingSpinner.jsx   # Loading states
-├── hooks/
-│   ├── useGeolocation.js     # Location services
-│   ├── useRestaurants.js     # Restaurant data
-│   └── useSwipe.js           # Touch/mouse gestures
-├── utils/
-│   └── session.js            # Session utilities
-├── App.jsx                   # Main app component
-├── main.jsx                  # App entry point
-└── index.css                 # Global styles
+│   └── DeliveryOrder.jsx      # DoorDash delivery flow (form → quote → tracking)
+├── data/
+│   └── restaurants.js         # 24 restaurants + CUISINES, CATEGORIES, DIETARY, OCCASIONS
+├── lib/
+│   └── supabase.js            # Supabase client, device ID, partner code generation
+├── main.jsx                   # Entry point
+└── index.css                  # Tailwind directives + glass/gradient utilities
+
+server/
+├── index.js                   # Express API (quotes, deliveries, webhooks, SSE)
+├── doordash-api.js            # DoorDash Drive v2 HTTP client
+├── doordash-jwt.js            # JWT generation for DoorDash auth
+└── .env.example               # Credential template
 ```
-
-## Features Implemented
-
-✅ **Core Features**
-- Tinder-like swipe interface
-- Group session creation and joining
-- Restaurant card display with images
-- Touch and mouse gesture support
-- Location-based restaurant discovery
-- Matching algorithm and results
-- Mobile-responsive design
-
-✅ **UI/UX**
-- Beautiful, modern interface
-- Smooth animations and transitions
-- Loading states and error handling
-- PWA capabilities for mobile app experience
-
-✅ **Technical**
-- Component-based architecture
-- Custom React hooks for logic separation
-- Touch gesture support for mobile
-- Geolocation integration
-- Mock restaurant data (ready for real API)
-
-## Future Enhancements
-
-- **Real API Integration**: Connect to restaurant APIs like Yelp or Google Places
-- **Real-time Sync**: Use WebSocket for live session updates
-- **User Accounts**: Save preferences and history
-- **Advanced Filters**: Cuisine types, price range, distance
-- **Reservations**: Direct booking integration
-- **Social Features**: Share matches, reviews, photos
-
-## Mobile App Experience
-
-The app is designed as a Progressive Web App (PWA) and works great on mobile devices:
-
-- **Touch gestures** for natural swiping
-- **Responsive design** adapts to any screen size
-- **Installable** as a native app on iOS and Android
-- **Offline support** for basic functionality
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
 
 ## License
 
-This project is open source and available under the [MIT License](LICENSE).
+MIT
 
 ---
 
