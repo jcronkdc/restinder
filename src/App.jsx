@@ -53,6 +53,26 @@ import { DeliveryOrder } from "./components/DeliveryOrder";
 
 const VETO_LIMIT = 3;
 
+// Pre-computed confetti particle data to avoid Math.random() in render
+const CONFETTI_PARTICLES = Array.from({ length: 30 }, (_, i) => ({
+  angle: (i * 12 * Math.PI) / 180,
+  radius: 80 + Math.random() * 80,
+  size: 4 + Math.random() * 8,
+  isRect: i % 3 === 0,
+  rotate: Math.random() * 720 - 360,
+  duration: 1.2 + Math.random() * 0.5,
+}));
+
+const CONFETTI_COLORS = [
+  "#ff6b9d",
+  "#c084fc",
+  "#60a5fa",
+  "#34d399",
+  "#fbbf24",
+  "#f97316",
+  "#ec4899",
+];
+
 const ONBOARDING_SLIDES = [
   {
     emoji: "👋",
@@ -1779,55 +1799,41 @@ function App() {
                   />
                   <Sparkles className="w-20 h-20 text-brand-pink mx-auto mb-3 relative z-10" />
                   {/* Confetti burst - 30 particles in two waves */}
-                  {Array.from({ length: 30 }).map((_, i) => {
-                    const colors = [
-                      "#ff6b9d",
-                      "#c084fc",
-                      "#60a5fa",
-                      "#34d399",
-                      "#fbbf24",
-                      "#f97316",
-                      "#ec4899",
-                    ];
-                    const angle = (i * 12 * Math.PI) / 180;
-                    const radius = 80 + Math.random() * 80;
-                    const size = 4 + Math.random() * 8;
-                    const isRect = i % 3 === 0;
-                    return (
-                      <motion.div
-                        key={i}
-                        className={
-                          isRect ? "absolute" : "absolute rounded-full"
-                        }
-                        style={{
-                          backgroundColor: colors[i % colors.length],
-                          width: isRect ? size * 0.6 : size,
-                          height: size,
-                          left: "50%",
-                          top: "50%",
-                          borderRadius: isRect ? 2 : "50%",
-                        }}
-                        initial={{
-                          x: 0,
-                          y: 0,
-                          opacity: 1,
-                          scale: 1,
-                          rotate: 0,
-                        }}
-                        animate={{
-                          x: Math.cos(angle) * radius,
-                          y: Math.sin(angle) * radius - 40,
-                          opacity: 0,
-                          scale: 0,
-                          rotate: Math.random() * 720 - 360,
-                        }}
-                        transition={{
-                          duration: 1.2 + Math.random() * 0.5,
-                          delay: i < 15 ? 0.1 : 0.4,
-                        }}
-                      />
-                    );
-                  })}
+                  {CONFETTI_PARTICLES.map((p, i) => (
+                    <motion.div
+                      key={i}
+                      className={
+                        p.isRect ? "absolute" : "absolute rounded-full"
+                      }
+                      style={{
+                        backgroundColor:
+                          CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+                        width: p.isRect ? p.size * 0.6 : p.size,
+                        height: p.size,
+                        left: "50%",
+                        top: "50%",
+                        borderRadius: p.isRect ? 2 : "50%",
+                      }}
+                      initial={{
+                        x: 0,
+                        y: 0,
+                        opacity: 1,
+                        scale: 1,
+                        rotate: 0,
+                      }}
+                      animate={{
+                        x: Math.cos(p.angle) * p.radius,
+                        y: Math.sin(p.angle) * p.radius - 40,
+                        opacity: 0,
+                        scale: 0,
+                        rotate: p.rotate,
+                      }}
+                      transition={{
+                        duration: p.duration,
+                        delay: i < 15 ? 0.1 : 0.4,
+                      }}
+                    />
+                  ))}
                 </motion.div>
                 <motion.h2
                   className="text-4xl font-bold gradient-text mb-1"
