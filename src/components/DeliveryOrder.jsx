@@ -74,7 +74,7 @@ export function DeliveryOrder({ restaurant, onBack, onDeliveryCreated }) {
     tip: 500, // $5.00 in cents
   });
 
-  const API_BASE = "http://localhost:3001/api";
+  const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3001/api";
 
   const updateForm = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));

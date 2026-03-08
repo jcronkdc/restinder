@@ -1,10 +1,61 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = "https://kfmysuqioesnbclvncpr.supabase.co";
-const supabaseKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmbXlzdXFpb2VzbmJjbHZuY3ByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NzE0NDYsImV4cCI6MjA4NjM0NzQ0Nn0.QVmr1yx1J-fXHxBlqjPDuvZOcI0MxPx9lweFi25ciL8";
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error(
+    "Missing Supabase credentials. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env",
+  );
+}
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// ═══ AUTH HELPERS ═══
+
+export async function signUp(email, password, name) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { name } },
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function signIn(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function signOut() {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+
+export async function resetPassword(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
+  if (error) throw error;
+}
+
+export async function getSession() {
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+  if (error) throw error;
+  return session;
+}
+
+export function onAuthStateChange(callback) {
+  return supabase.auth.onAuthStateChange(callback);
+}
 
 // Generate a stable device ID (persisted in localStorage)
 export function getDeviceId() {

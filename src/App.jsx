@@ -39,8 +39,14 @@ import {
   Eye,
   ChevronDown,
   Trophy,
+  LogOut,
 } from "lucide-react";
-import { supabase, getDeviceId, generatePartnerCode } from "./lib/supabase";
+import {
+  supabase,
+  getDeviceId,
+  generatePartnerCode,
+  signOut,
+} from "./lib/supabase";
 import {
   RESTAURANTS,
   CUISINES,
@@ -96,6 +102,11 @@ const ONBOARDING_SLIDES = [
   },
 ];
 
+// Sanitize user input (strip HTML tags, limit length)
+function sanitize(str, maxLen = 50) {
+  return str.replace(/<[^>]*>/g, "").slice(0, maxLen);
+}
+
 // localStorage helpers
 function loadSetting(key, fallback) {
   try {
@@ -111,7 +122,7 @@ function saveSetting(key, value) {
   } catch {}
 }
 
-function App() {
+function App({ session }) {
   // ── Step / view management ──
   const [step, setStep] = useState("welcome");
 
@@ -237,65 +248,110 @@ function App() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  // Initialize user in Supabase
+  // Initialize user in Supabase (linked to auth.users via auth_id)
   useEffect(() => {
     const initUser = async () => {
+      if (!session?.user?.id) return;
+      const authId = session.user.id;
       const deviceId = getDeviceId();
-      if (!deviceId) return;
+      const authName =
+        session.user.user_metadata?.name || session.user.email || "User";
 
-      const { data: existing } = await supabase
-        .from("rs_users")
-        .select("*")
-        .eq("device_id", deviceId)
-        .single();
-
-      if (existing) {
-        setMyUserId(existing.id);
-        setPartnerCode(existing.partner_code);
-        if (existing.partner_id) {
-          setPartnerId(existing.partner_id);
-          const { data: partner } = await supabase
-            .from("rs_users")
-            .select("name")
-            .eq("id", existing.partner_id)
-            .single();
-          if (partner) setPartnerName(partner.name);
-        }
-      } else {
-        const code = generatePartnerCode();
-        const { data: newUser } = await supabase
+      try {
+        // Try to find existing rs_user by auth_id
+        const { data: existing, error: fetchErr } = await supabase
           .from("rs_users")
-          .insert({
-            device_id: deviceId,
-            name: myName || "User",
-            partner_code: code,
-          })
-          .select()
+          .select("*")
+          .eq("auth_id", authId)
           .single();
-        if (newUser) {
-          setMyUserId(newUser.id);
-          setPartnerCode(newUser.partner_code);
+
+        if (fetchErr && fetchErr.code !== "PGRST116") {
+          console.error("Error fetching user:", fetchErr);
         }
+
+        if (existing) {
+          setMyUserId(existing.id);
+          setPartnerCode(existing.partner_code);
+          if (!myName && existing.name) setMyName(existing.name);
+          if (existing.partner_id) {
+            setPartnerId(existing.partner_id);
+            const { data: partner } = await supabase
+              .from("rs_users")
+              .select("name")
+              .eq("id", existing.partner_id)
+              .single();
+            if (partner) setPartnerName(partner.name);
+          }
+        } else {
+          // Check if there's a legacy device_id-only row to migrate
+          const { data: legacyUser } = await supabase
+            .from("rs_users")
+            .select("*")
+            .eq("device_id", deviceId)
+            .is("auth_id", null)
+            .single();
+
+          if (legacyUser) {
+            // Migrate legacy user to authenticated
+            const { data: migrated, error: migrateErr } = await supabase
+              .from("rs_users")
+              .update({ auth_id: authId, name: myName || legacyUser.name })
+              .eq("id", legacyUser.id)
+              .select()
+              .single();
+            if (migrateErr) {
+              console.error("Error migrating user:", migrateErr);
+            } else if (migrated) {
+              setMyUserId(migrated.id);
+              setPartnerCode(migrated.partner_code);
+              if (!myName && migrated.name) setMyName(migrated.name);
+            }
+          } else {
+            // Create new authenticated user
+            const code = generatePartnerCode();
+            const { data: newUser, error: insertErr } = await supabase
+              .from("rs_users")
+              .insert({
+                device_id: deviceId,
+                auth_id: authId,
+                name: myName || authName,
+                partner_code: code,
+              })
+              .select()
+              .single();
+            if (insertErr) {
+              console.error("Error creating user:", insertErr);
+            } else if (newUser) {
+              setMyUserId(newUser.id);
+              setPartnerCode(newUser.partner_code);
+              if (!myName) setMyName(newUser.name);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("User init error:", err);
       }
     };
     initUser();
-  }, []);
+  }, [session]);
 
-  // Sync user name to Supabase
+  // Sync user name to Supabase (properly awaited)
   useEffect(() => {
-    if (myUserId && myName) {
-      supabase
+    if (!myUserId || !myName) return;
+    const syncName = async () => {
+      const { error } = await supabase
         .from("rs_users")
         .update({ name: myName, updated_at: new Date().toISOString() })
         .eq("id", myUserId);
-    }
+      if (error) console.error("Name sync error:", error);
+    };
+    // Debounce by 500ms so we don't spam Supabase on every keystroke
+    const timer = setTimeout(syncName, 500);
+    return () => clearTimeout(timer);
   }, [myName, myUserId]);
 
-  // Keep a ref to the latest handleSwipe so the timer never captures a stale closure
+  // Ref declared here; assigned after handleSwipe is defined (below)
   const handleSwipeRef = useRef(null);
-  useEffect(() => {
-    handleSwipeRef.current = handleSwipe;
-  }, [handleSwipe]);
 
   // Timer logic
   useEffect(() => {
@@ -370,45 +426,59 @@ function App() {
       setLinkError("Enter a 6-character code");
       return;
     }
-    const { data: partner } = await supabase
-      .from("rs_users")
-      .select("*")
-      .eq("partner_code", linkCode)
-      .single();
-    if (!partner) {
-      setLinkError("Code not found");
-      return;
+    try {
+      const { data: partner, error: lookupErr } = await supabase
+        .from("rs_users")
+        .select("id, name, partner_code")
+        .eq("partner_code", linkCode)
+        .single();
+      if (lookupErr || !partner) {
+        setLinkError("Code not found");
+        return;
+      }
+      if (partner.id === myUserId) {
+        setLinkError("That's your own code!");
+        return;
+      }
+      const { error: e1 } = await supabase
+        .from("rs_users")
+        .update({ partner_id: partner.id })
+        .eq("id", myUserId);
+      const { error: e2 } = await supabase
+        .from("rs_users")
+        .update({ partner_id: myUserId })
+        .eq("id", partner.id);
+      if (e1 || e2) {
+        setLinkError("Failed to link — try again");
+        console.error("Link errors:", e1, e2);
+        return;
+      }
+      setPartnerId(partner.id);
+      setPartnerName(partner.name);
+      setLinkCode("");
+    } catch (err) {
+      setLinkError("Network error — try again");
+      console.error("Link partner error:", err);
     }
-    if (partner.id === myUserId) {
-      setLinkError("That's your own code!");
-      return;
-    }
-    await supabase
-      .from("rs_users")
-      .update({ partner_id: partner.id })
-      .eq("id", myUserId);
-    await supabase
-      .from("rs_users")
-      .update({ partner_id: myUserId })
-      .eq("id", partner.id);
-    setPartnerId(partner.id);
-    setPartnerName(partner.name);
-    setLinkCode("");
   };
 
   const unlinkPartner = async () => {
-    if (partnerId) {
-      await supabase
-        .from("rs_users")
-        .update({ partner_id: null })
-        .eq("id", myUserId);
-      await supabase
-        .from("rs_users")
-        .update({ partner_id: null })
-        .eq("id", partnerId);
+    try {
+      if (partnerId) {
+        await supabase
+          .from("rs_users")
+          .update({ partner_id: null })
+          .eq("id", myUserId);
+        await supabase
+          .from("rs_users")
+          .update({ partner_id: null })
+          .eq("id", partnerId);
+      }
+      setPartnerId(null);
+      setPartnerName("");
+    } catch (err) {
+      console.error("Unlink partner error:", err);
     }
-    setPartnerId(null);
-    setPartnerName("");
   };
 
   const copyCode = () => {
@@ -531,7 +601,7 @@ function App() {
 
     // Create remote session if needed
     if (mode === "remote" && partnerId && myUserId) {
-      const { data: session } = await supabase
+      const { data: newSession, error: sessionErr } = await supabase
         .from("rs_sessions")
         .insert({
           user1_id: myUserId,
@@ -539,10 +609,15 @@ function App() {
           cuisines: selectedCuisines,
           categories: [selectedCategory],
           restaurant_ids: filtered.map((r) => r.id),
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         })
         .select()
         .single();
-      if (session) setRemoteSession(session);
+      if (sessionErr) {
+        console.error("Session creation error:", sessionErr);
+      } else if (newSession) {
+        setRemoteSession(newSession);
+      }
     }
 
     setTimeout(() => {
@@ -551,23 +626,6 @@ function App() {
   };
 
   // ═══ SWIPE HANDLING ═══
-
-  const handleDragStart = () => {
-    setIsDragging(true);
-  };
-  const handleDrag = (_, info) => {
-    setDragX(info.offset.x);
-  };
-  const handleDragEnd = (_, info) => {
-    setIsDragging(false);
-    setDragX(0);
-    const threshold = 80;
-    if (info.offset.x > threshold) {
-      handleSwipe("right");
-    } else if (info.offset.x < -threshold) {
-      handleSwipe("left");
-    }
-  };
 
   const handleSwipe = useCallback(
     async (direction) => {
@@ -634,6 +692,26 @@ function App() {
       timerSeconds,
     ],
   );
+
+  // Keep the ref in sync so the timer always calls the latest handleSwipe
+  handleSwipeRef.current = handleSwipe;
+
+  const handleDragStart = () => {
+    setIsDragging(true);
+  };
+  const handleDrag = (_, info) => {
+    setDragX(info.offset.x);
+  };
+  const handleDragEnd = (_, info) => {
+    setIsDragging(false);
+    setDragX(0);
+    const threshold = 80;
+    if (info.offset.x > threshold) {
+      handleSwipe("right");
+    } else if (info.offset.x < -threshold) {
+      handleSwipe("left");
+    }
+  };
 
   const handleSuperVeto = () => {
     const vetoCount =
@@ -884,6 +962,10 @@ function App() {
             <h3 className="text-white font-bold text-sm">Your Settings</h3>
             <div className="text-xs text-brand-muted space-y-2">
               <p>
+                <span className="text-white">Email:</span>{" "}
+                {session?.user?.email || "—"}
+              </p>
+              <p>
                 <span className="text-white">Name:</span> {myName || "Not set"}
               </p>
               <p>
@@ -910,6 +992,18 @@ function App() {
             <p className="text-brand-muted/50 text-xs">
               Settings auto-save between sessions.
             </p>
+            <button
+              onClick={async () => {
+                try {
+                  await signOut();
+                } catch (err) {
+                  console.error("Sign out error:", err);
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" /> Sign Out
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -938,7 +1032,8 @@ function App() {
                 type="text"
                 placeholder="Your name"
                 value={myName}
-                onChange={(e) => setMyName(e.target.value)}
+                onChange={(e) => setMyName(sanitize(e.target.value))}
+                maxLength={50}
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-brand-muted focus:outline-none focus:border-brand-purple/50"
               />
               {partnerName && partnerId ? (
@@ -1053,7 +1148,9 @@ function App() {
                   type="text"
                   placeholder="ABC123"
                   value={linkCode}
-                  onChange={(e) => setLinkCode(e.target.value.toUpperCase())}
+                  onChange={(e) =>
+                    setLinkCode(sanitize(e.target.value, 6).toUpperCase())
+                  }
                   maxLength={6}
                   className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white text-center text-xl font-mono tracking-widest placeholder-brand-muted/30 focus:outline-none focus:border-brand-purple/50 uppercase"
                 />
@@ -1318,7 +1415,8 @@ function App() {
                   type="text"
                   placeholder="Partner's name (for pass & play)"
                   value={player2Name}
-                  onChange={(e) => setPlayer2Name(e.target.value)}
+                  onChange={(e) => setPlayer2Name(sanitize(e.target.value))}
+                  maxLength={50}
                   className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-brand-muted focus:outline-none focus:border-brand-purple/50"
                 />
               </div>
