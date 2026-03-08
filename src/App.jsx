@@ -25,9 +25,24 @@ import {
   Ban,
   Truck,
   Bookmark,
+  Share2,
+  ExternalLink,
+  Phone,
+  Navigation,
+  UtensilsCrossed,
+  Eye,
+  ChevronDown,
+  Trophy,
 } from "lucide-react";
 import { supabase, getDeviceId, generatePartnerCode } from "./lib/supabase";
-import { RESTAURANTS, CUISINES, CATEGORIES } from "./data/restaurants";
+import {
+  RESTAURANTS,
+  CUISINES,
+  CATEGORIES,
+  DIETARY_OPTIONS,
+  OCCASIONS,
+  isOpenNow,
+} from "./data/restaurants";
 import { DeliveryOrder } from "./components/DeliveryOrder";
 
 const VETO_LIMIT = 3;
@@ -80,6 +95,18 @@ function App() {
   const [maxDistance, setMaxDistance] = useState(10);
   const [priceRange, setPriceRange] = useState([1, 2, 3, 4]);
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedDietary, setSelectedDietary] = useState(() =>
+    loadSetting("rs_dietary", []),
+  );
+  const [selectedOccasion, setSelectedOccasion] = useState(null);
+  const [openNowOnly, setOpenNowOnly] = useState(false);
+
+  // ── Detail view (tap to expand) ──
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  // ── Tiebreaker ──
+  const [tiebreakerMode, setTiebreakerMode] = useState(false);
+  const [tiebreakerPool, setTiebreakerPool] = useState([]);
 
   // ── Game state ──
   const [restaurants, setRestaurants] = useState([]);
@@ -123,6 +150,9 @@ function App() {
   useEffect(() => {
     saveSetting("rs_cuisines", selectedCuisines);
   }, [selectedCuisines]);
+  useEffect(() => {
+    saveSetting("rs_dietary", selectedDietary);
+  }, [selectedDietary]);
   useEffect(() => {
     saveSetting("rs_partner_id", partnerId);
   }, [partnerId]);
@@ -371,6 +401,28 @@ function App() {
       if (catFiltered.length >= 3) filtered = catFiltered;
     }
 
+    // Filter by dietary
+    if (selectedDietary.length > 0) {
+      filtered = filtered.filter((r) =>
+        selectedDietary.every(
+          (d) => r.dietary?.includes(d) || r.dietary?.includes(d + "-options"),
+        ),
+      );
+    }
+
+    // Filter by occasion
+    if (selectedOccasion) {
+      const occFiltered = filtered.filter((r) =>
+        r.occasions?.includes(selectedOccasion),
+      );
+      if (occFiltered.length >= 3) filtered = occFiltered;
+    }
+
+    // Filter by open now
+    if (openNowOnly) {
+      filtered = filtered.filter((r) => isOpenNow(r));
+    }
+
     // Filter by rating
     if (minRating > 0) {
       filtered = filtered.filter((r) => r.rating >= minRating);
@@ -444,6 +496,7 @@ function App() {
       if (!restaurant) return;
 
       setSwipeDir(direction);
+      haptic(direction === "right" ? "medium" : "light");
 
       if (direction === "right") {
         if (step === "player1" || step === "remote-swiping") {
@@ -514,6 +567,7 @@ function App() {
       setPlayer2Vetoes((prev) => prev + 1);
     }
 
+    haptic("heavy");
     setVetoFlash(true);
     setTimeout(() => setVetoFlash(false), 600);
     handleSwipe("left");
@@ -536,7 +590,74 @@ function App() {
     setMode("local");
     setPlayer1Vetoes(0);
     setPlayer2Vetoes(0);
+    setTiebreakerMode(false);
+    setTiebreakerPool([]);
+    setDetailOpen(false);
     resetTimer();
+  };
+
+  // Haptic feedback helper
+  const haptic = (style = "light") => {
+    try {
+      if (navigator.vibrate) {
+        navigator.vibrate(
+          style === "heavy" ? 50 : style === "medium" ? 30 : 15,
+        );
+      }
+    } catch {}
+  };
+
+  // Dietary toggle
+  const toggleDietary = (id) => {
+    setSelectedDietary((prev) =>
+      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id],
+    );
+  };
+
+  // Start tiebreaker round (when no matches found)
+  const startTiebreaker = () => {
+    // Pool = restaurants at least one player liked, sorted by total likes
+    const pool = restaurants
+      .filter((r) => player1Likes.has(r.id) || player2Likes.has(r.id))
+      .sort((a, b) => {
+        const aScore =
+          (player1Likes.has(a.id) ? 1 : 0) + (player2Likes.has(b.id) ? 1 : 0);
+        const bScore =
+          (player1Likes.has(b.id) ? 1 : 0) + (player2Likes.has(b.id) ? 1 : 0);
+        return bScore - aScore;
+      })
+      .slice(0, 5);
+
+    if (pool.length === 0) return;
+
+    setTiebreakerPool(pool);
+    setTiebreakerMode(true);
+    setRestaurants(pool);
+    setCurrentIndex(0);
+    setPlayer1Likes(new Set());
+    setPlayer2Likes(new Set());
+    setPlayer1Vetoes(0);
+    setPlayer2Vetoes(0);
+    setStep("player1");
+  };
+
+  // Share results
+  const shareResults = async () => {
+    const text =
+      matches.length > 0
+        ? `We matched on ${matches.length} restaurant${matches.length !== 1 ? "s" : ""} with Restinder! 🍽️\n${matches.map((r) => `• ${r.name} (${r.cuisine}, ${"$".repeat(r.priceLevel)})`).join("\n")}`
+        : "We couldn't agree on a restaurant! 😂 Try Restinder to settle it.";
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Restinder Results", text });
+        return;
+      } catch {}
+    }
+    // Fallback: copy to clipboard
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {}
   };
 
   // ═══ COMPUTED ═══
@@ -872,6 +993,75 @@ function App() {
               })}
             </div>
 
+            {/* Occasion picker */}
+            <div className="mb-3">
+              <p className="text-brand-muted text-xs mb-2 text-left font-medium uppercase tracking-wider">
+                What&apos;s the occasion?
+              </p>
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                <button
+                  onClick={() => setSelectedOccasion(null)}
+                  className={`flex-shrink-0 px-3 py-2 rounded-xl text-sm transition-all ${!selectedOccasion ? "bg-brand-pink/20 border-2 border-brand-pink text-white" : "glass border-2 border-transparent text-brand-muted hover:text-white"}`}
+                >
+                  🎲 Any
+                </button>
+                {OCCASIONS.map((occ) => (
+                  <button
+                    key={occ.id}
+                    onClick={() =>
+                      setSelectedOccasion(
+                        selectedOccasion === occ.id ? null : occ.id,
+                      )
+                    }
+                    className={`flex-shrink-0 px-3 py-2 rounded-xl text-sm transition-all ${selectedOccasion === occ.id ? "bg-brand-pink/20 border-2 border-brand-pink text-white" : "glass border-2 border-transparent text-brand-muted hover:text-white"}`}
+                  >
+                    <span className="mr-1">{occ.emoji}</span>
+                    {occ.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Dietary restrictions */}
+            <div className="mb-3">
+              <p className="text-brand-muted text-xs mb-2 text-left font-medium uppercase tracking-wider">
+                Dietary Needs
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {DIETARY_OPTIONS.map((diet) => {
+                  const active = selectedDietary.includes(diet.id);
+                  return (
+                    <button
+                      key={diet.id}
+                      onClick={() => toggleDietary(diet.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs transition-all ${active ? "bg-green-500/20 border-2 border-green-500 text-green-300" : "glass border-2 border-transparent text-brand-muted hover:text-white"}`}
+                    >
+                      <span className="mr-1">{diet.emoji}</span>
+                      {diet.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Open Now toggle + Deal Breakers */}
+            <div className="glass rounded-2xl p-4 mb-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-green-400" />
+                  <span className="text-white text-sm">Open Now Only</span>
+                </div>
+                <button
+                  onClick={() => setOpenNowOnly(!openNowOnly)}
+                  className={`w-12 h-7 rounded-full transition-all relative ${openNowOnly ? "bg-green-500" : "bg-white/10"}`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full bg-white absolute top-1 transition-all ${openNowOnly ? "left-6" : "left-1"}`}
+                  />
+                </button>
+              </div>
+            </div>
+
             {/* Deal Breaker Filters */}
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -885,8 +1075,8 @@ function App() {
                   <span className="w-2 h-2 rounded-full bg-red-400" />
                 )}
               </span>
-              <ChevronRight
-                className={`w-4 h-4 text-brand-muted transition-transform ${showFilters ? "rotate-90" : ""}`}
+              <ChevronDown
+                className={`w-4 h-4 text-brand-muted transition-transform ${showFilters ? "rotate-180" : ""}`}
               />
             </button>
 
@@ -1197,6 +1387,14 @@ function App() {
                           </div>
                         )}
                         <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                          {isOpenNow(currentRestaurant) && (
+                            <div className="glass rounded-full px-2.5 py-1 flex items-center gap-1">
+                              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                              <span className="text-green-400 font-bold text-xs">
+                                Open
+                              </span>
+                            </div>
+                          )}
                           <div className="glass rounded-full px-2.5 py-1 flex items-center gap-1">
                             <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
                             <span className="text-white font-bold text-xs">
@@ -1211,9 +1409,20 @@ function App() {
                         </div>
                       </div>
                       <div className="p-4">
-                        <h3 className="text-xl font-bold text-white mb-1">
-                          {currentRestaurant.name}
-                        </h3>
+                        <div className="flex items-start justify-between mb-1">
+                          <h3 className="text-xl font-bold text-white">
+                            {currentRestaurant.name}
+                          </h3>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDetailOpen(true);
+                            }}
+                            className="ml-2 flex-shrink-0 w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
+                          >
+                            <Eye className="w-4 h-4 text-brand-muted" />
+                          </button>
+                        </div>
                         <div className="flex items-center gap-2 text-brand-muted text-xs mb-2 flex-wrap">
                           <span>{currentRestaurant.cuisine}</span>
                           <span>&middot;</span>
@@ -1223,6 +1432,22 @@ function App() {
                             <Clock className="w-3 h-3 inline" />{" "}
                             {currentRestaurant.waitTime} min
                           </span>
+                          {currentRestaurant.dietary?.length > 0 && (
+                            <>
+                              <span>&middot;</span>
+                              <span className="text-green-400">
+                                {currentRestaurant.dietary
+                                  .slice(0, 2)
+                                  .map((d) => {
+                                    const opt = DIETARY_OPTIONS.find((o) =>
+                                      d.startsWith(o.id),
+                                    );
+                                    return opt ? opt.emoji : "";
+                                  })
+                                  .join("")}
+                              </span>
+                            </>
+                          )}
                         </div>
                         <div className="flex gap-1.5 flex-wrap mb-2">
                           {currentRestaurant.tags.map((tag) => (
@@ -1501,14 +1726,33 @@ function App() {
                 <h2 className="text-3xl font-bold text-white mb-2">
                   No Matches
                 </h2>
-                <p className="text-brand-muted mb-8">
-                  You two have very different taste! Try different cuisines or
-                  categories.
+                <p className="text-brand-muted mb-4">
+                  You two have very different taste!
                 </p>
+                {!tiebreakerMode && (
+                  <button
+                    onClick={startTiebreaker}
+                    className="w-full bg-yellow-500/20 border-2 border-yellow-500/40 text-yellow-300 font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-yellow-500/30 transition-colors mb-4"
+                  >
+                    <Trophy className="w-5 h-5" /> Tiebreaker Round
+                  </button>
+                )}
+                {tiebreakerMode && (
+                  <p className="text-brand-muted/60 text-sm mb-4">
+                    Even after the tiebreaker, no agreement! Try different
+                    filters.
+                  </p>
+                )}
               </>
             )}
 
             <div className="space-y-3">
+              <button
+                onClick={shareResults}
+                className="w-full glass text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-colors border border-white/10"
+              >
+                <Share2 className="w-4 h-4" /> Share Results
+              </button>
               <button
                 onClick={resetGame}
                 className="w-full gradient-bg text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
@@ -1560,6 +1804,205 @@ function App() {
                 console.log("Delivery created:", delivery)
               }
             />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══════════ Restaurant Detail Overlay ═══════════ */}
+      <AnimatePresence>
+        {detailOpen && currentRestaurant && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+            onClick={() => setDetailOpen(false)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="absolute bottom-0 left-0 right-0 max-h-[85vh] bg-brand-bg border-t border-white/10 rounded-t-3xl overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Handle bar */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-white/20" />
+              </div>
+
+              {/* Hero image */}
+              <div className="relative h-[200px] mx-4 rounded-2xl overflow-hidden mb-4">
+                <img
+                  src={currentRestaurant.image}
+                  alt={currentRestaurant.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-brand-bg via-transparent to-transparent" />
+                <div className="absolute bottom-3 left-3 right-3">
+                  <h2 className="text-2xl font-bold text-white">
+                    {currentRestaurant.name}
+                  </h2>
+                  <p className="text-brand-muted text-sm">
+                    {currentRestaurant.cuisine} &middot;{" "}
+                    {"$".repeat(currentRestaurant.priceLevel)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="px-5 pb-8 space-y-4">
+                {/* Quick stats */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="glass rounded-xl p-3 text-center">
+                    <Star className="w-5 h-5 text-yellow-400 fill-yellow-400 mx-auto mb-1" />
+                    <p className="text-white font-bold text-sm">
+                      {currentRestaurant.rating}
+                    </p>
+                    <p className="text-brand-muted text-xs">
+                      {currentRestaurant.reviews} reviews
+                    </p>
+                  </div>
+                  <div className="glass rounded-xl p-3 text-center">
+                    <Navigation className="w-5 h-5 text-brand-purple mx-auto mb-1" />
+                    <p className="text-white font-bold text-sm">
+                      {currentRestaurant.distance} mi
+                    </p>
+                    <p className="text-brand-muted text-xs">away</p>
+                  </div>
+                  <div className="glass rounded-xl p-3 text-center">
+                    <Clock className="w-5 h-5 text-brand-pink mx-auto mb-1" />
+                    <p className="text-white font-bold text-sm">
+                      {currentRestaurant.waitTime}
+                    </p>
+                    <p className="text-brand-muted text-xs">min wait</p>
+                  </div>
+                </div>
+
+                {/* Open status & hours */}
+                <div className="glass rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-2.5 h-2.5 rounded-full ${isOpenNow(currentRestaurant) ? "bg-green-400 animate-pulse" : "bg-red-400"}`}
+                      />
+                      <span
+                        className={`font-medium text-sm ${isOpenNow(currentRestaurant) ? "text-green-400" : "text-red-400"}`}
+                      >
+                        {isOpenNow(currentRestaurant) ? "Open Now" : "Closed"}
+                      </span>
+                    </div>
+                    <span className="text-brand-muted text-sm">
+                      {currentRestaurant.hours}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <p className="text-brand-muted text-sm leading-relaxed">
+                  {currentRestaurant.description}
+                </p>
+
+                {/* Popular dishes */}
+                {currentRestaurant.popularDishes && (
+                  <div>
+                    <h4 className="text-white font-semibold text-sm mb-2 flex items-center gap-2">
+                      <UtensilsCrossed className="w-4 h-4 text-brand-pink" />{" "}
+                      Popular Dishes
+                    </h4>
+                    <div className="flex gap-2 flex-wrap">
+                      {currentRestaurant.popularDishes.map((dish) => (
+                        <span
+                          key={dish}
+                          className="px-3 py-1.5 rounded-full bg-brand-blue/20 text-brand-blue text-xs font-medium"
+                        >
+                          {dish}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Dietary info */}
+                {currentRestaurant.dietary?.length > 0 && (
+                  <div>
+                    <h4 className="text-white font-semibold text-sm mb-2">
+                      Dietary
+                    </h4>
+                    <div className="flex gap-2 flex-wrap">
+                      {currentRestaurant.dietary.map((d) => {
+                        const opt = DIETARY_OPTIONS.find((o) =>
+                          d.startsWith(o.id),
+                        );
+                        return opt ? (
+                          <span
+                            key={d}
+                            className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-xs border border-green-500/20"
+                          >
+                            {opt.emoji}{" "}
+                            {d.includes("-options")
+                              ? `${opt.name} Options`
+                              : opt.name}
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags */}
+                <div className="flex gap-2 flex-wrap">
+                  {currentRestaurant.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-3 py-1 rounded-full bg-white/5 text-brand-muted text-xs border border-white/10"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Contact & directions */}
+                <div className="glass rounded-xl p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-4 h-4 text-brand-muted flex-shrink-0" />
+                    <span className="text-white text-sm">
+                      {currentRestaurant.address}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Phone className="w-4 h-4 text-brand-muted flex-shrink-0" />
+                    <span className="text-white text-sm">
+                      {currentRestaurant.phone}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-3">
+                  <a
+                    href={`https://maps.google.com/?q=${encodeURIComponent(currentRestaurant.name + " " + currentRestaurant.address)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 glass rounded-xl py-3 text-center text-white text-sm font-medium flex items-center justify-center gap-2 hover:bg-white/10 transition-colors"
+                  >
+                    <Navigation className="w-4 h-4" /> Directions
+                  </a>
+                  <a
+                    href={`tel:${currentRestaurant.phone}`}
+                    className="flex-1 glass rounded-xl py-3 text-center text-white text-sm font-medium flex items-center justify-center gap-2 hover:bg-white/10 transition-colors"
+                  >
+                    <Phone className="w-4 h-4" /> Call
+                  </a>
+                </div>
+
+                <button
+                  onClick={() => setDetailOpen(false)}
+                  className="w-full gradient-bg text-white font-semibold py-3 rounded-xl text-sm"
+                >
+                  Back to Swiping
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
